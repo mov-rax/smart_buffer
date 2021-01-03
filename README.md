@@ -13,7 +13,7 @@ at runtime, where any additional required on runtime will be allocated in the he
 An example of such is shown below:
 
 ```rust
-let mut buf = SmartBuffer::<u8, 3>::new(5); // 3 elements on the stack, 2 on the heap
+let mut buf = SmartBuffer::<u8, 3>::new(0, 5); // 3 elements on the stack, 2 on the heap
 buf.push(3); // stack
 buf.push(21); // stack
 buf.push(100); // stack
@@ -28,7 +28,7 @@ buf[4] = 40; // modified on the heap
 To offer flexibility while using this crate, it is also possible to iterate through all values as if it was contiguous data structure.
 
 ```rust
-let mut buf = SmartBuffer::<f64,128>::new(256); 
+let mut buf = SmartBuffer::<f64,128>::new(0.0, 256); 
 // code goes here
 for elem in &buf{
   println!("Whoa: {}", elem);
