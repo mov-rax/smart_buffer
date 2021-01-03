@@ -21,3 +21,13 @@ buf.push(65); // heap
 buf.push(21); // heap
 buf.push(0); // not pushed, not enough space
 ```
+
+To offer flexibility while using this crate, it is also possible to iterate through all values as if it was contiguous data structure.
+
+```rust
+let mut buf = SmartBuffer::<f64,128>::new(256); 
+// code goes here
+for elem in &buf{
+  println!("Whoa: {}", elem);
+}
+```
