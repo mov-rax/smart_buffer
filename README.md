@@ -31,3 +31,5 @@ for elem in &buf{
   println!("Whoa: {}", elem);
 }
 ```
+
+Any type that implements `Copy` and `Clone` can be used in a SmartBuffer.
