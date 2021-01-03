@@ -55,5 +55,5 @@ fn some_function(){
 ```
 
 In the example above, the macro REQUIRES that the length of the stack (2 in the example) is known on compile time. The total
-length of the SmartBuffer can be known at runtime!
+length of the SmartBuffer can be known at runtime! The length of the stack portion of the SmartBuffer can be a const generic.
 
