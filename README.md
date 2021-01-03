@@ -1,5 +1,5 @@
 # smart_buffer
-A stack/heap buffer with const generics.
+A stack/heap buffer with const generics. No std needed.
 
 ## THIS CRATE REQUIRES USING NIGHTLY RUST.
 
