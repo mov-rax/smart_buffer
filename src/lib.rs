@@ -177,5 +177,4 @@ impl<T, const N:usize> Drop for SmartBuffer<T,N>
     }
 }
 
-macro_rules!
 
