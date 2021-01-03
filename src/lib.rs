@@ -2,6 +2,9 @@
 #![feature(min_const_generics)]
 #[macro_use]
 extern crate alloc;
+#[macro_use]
+extern crate array_macro;
+
 use alloc::alloc::{alloc, dealloc, Layout};
 use alloc::vec::Vec;
 use core::mem::size_of;
@@ -15,7 +18,6 @@ mod index;
 #[cfg(test)]
 mod tests {
     use crate::SmartBuffer;
-    use array_macro::array;
     use alloc::string::String;
     use crate::buf;
     use alloc::vec::Vec;
