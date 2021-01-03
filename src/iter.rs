@@ -10,7 +10,7 @@ impl<T, const N: usize> IntoIterator for SmartBuffer<T,N>
     type IntoIter = SmartBufferIter<T,N>;
     /// Creates a consuming Iterator
     fn into_iter(mut self) -> Self::IntoIter {
-        let stack_ptr = self.s_buf.as_mut_ptr();
+        let stack_ptr = self.s_buf.as_mut().unwrap().as_mut_ptr();
         let heap_ptr = self.d_buf;
         let total_elem = self.size;
 
@@ -31,7 +31,7 @@ impl<'a, T, const N: usize> IntoIterator for &'a SmartBuffer<T,N>
     type IntoIter = SmartBufferIterRef<'a,T,N>;
     /// Creates a consuming Iterator
     fn into_iter(self) -> Self::IntoIter {
-        let stack_ptr = self.s_buf.as_ptr();
+        let stack_ptr = self.s_buf.as_ref().unwrap().as_ptr();
         let heap_ptr = self.d_buf;
         let total_elem = self.size;
 
@@ -53,7 +53,7 @@ impl<'a, T, const N: usize> IntoIterator for &'a mut SmartBuffer<T,N>
     type IntoIter = SmartBufferIterRefMut<'a,T,N>;
     /// Creates a consuming Iterator
     fn into_iter(self) -> Self::IntoIter {
-        let stack_ptr = self.s_buf.as_mut_ptr();
+        let stack_ptr = self.s_buf.as_mut().unwrap().as_mut_ptr();
         let heap_ptr = self.d_buf.clone();
         let total_elem = self.size;
 
@@ -87,10 +87,10 @@ impl<T, const N: usize> Iterator for SmartBufferIter<T,N>
         if self.count < self.total_elem{
             if self.count < N{
                 self.count += 1;
-                return unsafe {Some((*((self.stack_ptr as usize + self.count - 1 * size_of::<T>()) as *mut T)).clone())}
+                return unsafe {Some((*((self.stack_ptr as usize + (self.count - 1) * size_of::<T>()) as *mut T)).clone())}
             }
             self.count += 1;
-            return unsafe {Some((*((self.heap_ptr.unwrap() as usize + self.count - N - 1 * size_of::<T>()) as *mut T)).clone())}
+            return unsafe {Some((*((self.heap_ptr.unwrap() as usize + (self.count - N - 1) * size_of::<T>()) as *mut T)).clone())}
         }
         None
     }
@@ -116,10 +116,10 @@ impl<'a, T, const N: usize> Iterator for SmartBufferIterRef<'a, T,N>
         if self.count < self.total_elem{
             if self.count < N{
                 self.count += 1;
-                return unsafe {Some(&*((self.stack_ptr as usize + self.count - 1 * size_of::<T>()) as *const T))}
+                return unsafe {Some(&*((self.stack_ptr as usize + (self.count - 1) * size_of::<T>()) as *const T))}
             }
             self.count += 1;
-            return unsafe {Some(&*((self.heap_ptr.unwrap() as usize + self.count - N - 1 * size_of::<T>()) as *const T))}
+            return unsafe {Some(&*((self.heap_ptr.unwrap() as usize + (self.count - N - 1) * size_of::<T>()) as *const T))}
         }
         None
     }
@@ -145,10 +145,10 @@ impl<'a, T, const N: usize> Iterator for SmartBufferIterRefMut<'a, T,N>
         if self.count < self.total_elem{
             if self.count < N{
                 self.count += 1;
-                return unsafe {Some(&mut *((self.stack_ptr as usize + self.count - 1 * size_of::<T>()) as *mut T))}
+                return unsafe {Some(&mut *((self.stack_ptr as usize + (self.count - 1) * size_of::<T>()) as *mut T))}
             }
             self.count += 1;
-            return unsafe {Some(&mut *((self.heap_ptr.unwrap() as usize + self.count - N - 1 * size_of::<T>()) as *mut T))}
+            return unsafe {Some(&mut *((self.heap_ptr.unwrap() as usize + (self.count - N - 1) * size_of::<T>()) as *mut T))}
         }
         None
     }

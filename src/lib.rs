@@ -1,18 +1,50 @@
-#![no_std]
+// #![no_std]
 #![feature(min_const_generics)]
+#[macro_use]
 extern crate alloc;
 use alloc::alloc::{alloc, dealloc, Layout};
 use core::mem::size_of;
-
+use array_macro::array;
 mod iter;
 
+#[macro_use]
 #[cfg(test)]
 mod tests {
     use crate::SmartBuffer;
-
+    use array_macro::array;
+    use alloc::string::String;
+    use crate::buf;
     #[test]
     fn it_works() {
-        let buf = SmartBuffer::<&str, 10>::new("",25);
+
+        #[derive(Clone)]
+        struct TestStruct {
+            a: usize,
+            b: i32,
+            c: u8
+        }
+
+        let mut buf = buf!(String::new(), 2, 4);
+        buf.push(String::from("I wonder"));
+        buf.push(String::from("What you could do with this"));
+        buf.push(String::from("This is in the heap now!"));
+        buf.push(String::from("Look mom, no hands!"));
+
+        for string in &buf{
+            println!("{}", string);
+        }
+
+        let mut buf = buf!(TestStruct {a:0,b:0,c:0}, 2, 4);
+
+        buf.push(TestStruct{a: 10, b: -50, c: 128});
+        buf.push(TestStruct{a: 41, b: 92, c: 5});
+        buf.push(TestStruct{a: 19, b: 39, c: 76});
+        buf.push(TestStruct{a: 7824, b: -541, c: 50});
+
+        for item in &buf{
+            println!("{} {} {}", item.a, item.b, item.c);
+        }
+
     }
 }
 
@@ -20,7 +52,7 @@ mod tests {
 pub struct SmartBuffer<T, const N:usize>
     where T: Clone
 {
-    s_buf: [T; N],
+    s_buf: Option<[T; N]>,
     d_buf: Option<*mut T>,
     layout: Option<Layout>,
     size: usize,
@@ -32,11 +64,18 @@ cursor: usize,
 impl<T, const N:usize> SmartBuffer<T,N>
     where T: Clone
 {
+    /// Clears all values to the given default value.
+    pub fn clear(&mut self){
+        let default = self.default.clone();
+        for elem in self{
+            *elem = default.clone();
+        }
+    }
 
     /// Safely push a value into the SmartBuffer
     pub fn push(&mut self, other: T){
         if self.size < N{ // insert into stack
-            self.s_buf[self.size] = other;
+            self.s_buf.as_mut().unwrap()[self.size] = other;
             self.size += 1;
         } else if self.size < self.capacity{ // insert into heap
             unsafe {*((self.d_buf.unwrap() as usize + (self.size - N) * size_of::<T>()) as *mut T) = other};
@@ -77,7 +116,7 @@ impl<T, const N:usize> SmartBuffer<T,N>
     /// Safely insert a value into the SmartBuffer
     pub fn insert(&mut self, other: T, index: usize){
         if index < N{ // insert into stack
-            self.s_buf[index] = other;
+            self.s_buf.as_mut().unwrap()[index] = other;
             if index > self.size{
                 self.size = index;
             }
@@ -92,7 +131,7 @@ impl<T, const N:usize> SmartBuffer<T,N>
     /// Safely get a value at an index
     pub fn get(&mut self, index:usize) -> Option<&T> {
         if index < N {
-            return Some(&self.s_buf[index])
+            return Some(&(self.s_buf.as_ref().unwrap()[index]))
         } else if index < self.capacity {
             return unsafe { Some(&*((self.d_buf.unwrap() as usize + (index - N) * size_of::<T>()) as *mut T)) }
         }
@@ -102,7 +141,7 @@ impl<T, const N:usize> SmartBuffer<T,N>
     /// Unsafely get a value at an index. An index too large will result in a fault
     pub unsafe fn get_unchecked(&mut self, index:usize) -> &T{
         if index < N{
-            return &self.s_buf[index];
+            return &self.s_buf.as_ref().unwrap()[index];
         }
         &*((self.d_buf.unwrap() as usize + (index - N) * size_of::<T>()) as *mut T)
     }
@@ -126,7 +165,7 @@ impl<T, const N:usize> SmartBuffer<T,N>
     where T: Copy + Clone
     {
         let mut buf = Self{
-            s_buf: [value; N],
+            s_buf: Some([value; N]),
             d_buf: None,
             layout: None,
             size: 0,
@@ -134,18 +173,33 @@ impl<T, const N:usize> SmartBuffer<T,N>
             default: value,
             cursor: 0,
         };
+
         if N < len{
             buf.allocate(len - N);
         }
         buf
     }
 
-    // /// Creates a SmartBuffer where the default value is the first value entered.
-    // ///
-    // /// This function is not recommended
-    // pub fn gen(buf:[T; N], len:usize) -> Self{
-    //
-    // }
+    /// Creates a SmartBuffer from an array
+    pub fn from_arr(buf:[T; N], len:usize) -> Self
+    where T: Clone
+    {
+        let def = buf[0].clone();
+        let mut buf = Self{
+            s_buf: Some(buf),
+            d_buf: None,
+            layout: None,
+            size: 0,
+            capacity: N,
+            default: def,
+            cursor: 0,
+        };
+
+        if N < len{
+            buf.allocate(len - N);
+        }
+        buf
+    }
 
 }
 
@@ -174,6 +228,20 @@ impl<T, const N:usize> Drop for SmartBuffer<T,N>
         if let Some(ptr) = self.d_buf{
             unsafe {dealloc(ptr as *mut u8, self.layout.unwrap())};
         }
+    }
+}
+
+#[macro_export]
+/// Macro that easily creates a new SmartBuffer!
+///
+///  Requires `data, s_len, t_len`
+///
+/// - The first element in the macro requires the data that will be used in the SmartBuffer
+/// - The second element is the size of the stack portion of the SmartBuffer, whose size must be known on compile time. (CONSTANT)
+/// - The third element is the total required size of the SmartBuffer, which allocates memory if necessary on the heap at runtime!
+macro_rules! buf {
+    ($data:expr, $s_len:expr, $t_len:expr) => {
+        $crate::SmartBuffer::<_,$s_len>::from_arr(array_macro::array!(_ => $data; $s_len), $t_len)
     }
 }
 
