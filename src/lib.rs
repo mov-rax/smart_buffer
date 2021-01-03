@@ -1,8 +1,9 @@
-// #![no_std]
+#![no_std]
 #![feature(min_const_generics)]
 #[macro_use]
 extern crate alloc;
 use alloc::alloc::{alloc, dealloc, Layout};
+use alloc::vec::Vec;
 use core::mem::size_of;
 use array_macro::array;
 use crate::iter::SmartBufferIterRef;
@@ -17,6 +18,8 @@ mod tests {
     use array_macro::array;
     use alloc::string::String;
     use crate::buf;
+    use alloc::vec::Vec;
+
     #[test]
     fn it_works() {
         let mut buf = buf!(String::new(), 2, 4);
@@ -27,14 +30,7 @@ mod tests {
 
         buf[0] = format!("I have rearranged this!");
 
-        println!("{}", &buf[0]);
-
         let vecbuf:Vec<_> = buf.into();
-
-        for x in &vecbuf{
-            println!("{}", x);
-        }
-
     }
 }
 
