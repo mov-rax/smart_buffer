@@ -10,7 +10,7 @@ impl<T, const N: usize> IntoIterator for SmartBuffer<T,N>
     type IntoIter = SmartBufferIter<T,N>;
     /// Creates a consuming Iterator
     fn into_iter(mut self) -> Self::IntoIter {
-        let stack_ptr = self.s_buf.as_mut().unwrap().as_mut_ptr();
+        let stack_ptr = self.s_buf.as_mut_ptr();
         let heap_ptr = self.d_buf;
         let total_elem = self.size;
 
@@ -31,7 +31,7 @@ impl<'a, T, const N: usize> IntoIterator for &'a SmartBuffer<T,N>
     type IntoIter = SmartBufferIterRef<'a,T,N>;
     /// Creates a consuming Iterator
     fn into_iter(self) -> Self::IntoIter {
-        let stack_ptr = self.s_buf.as_ref().unwrap().as_ptr();
+        let stack_ptr = self.s_buf.as_ptr();
         let heap_ptr = self.d_buf;
         let total_elem = self.size;
 
@@ -53,7 +53,7 @@ impl<'a, T, const N: usize> IntoIterator for &'a mut SmartBuffer<T,N>
     type IntoIter = SmartBufferIterRefMut<'a,T,N>;
     /// Creates a consuming Iterator
     fn into_iter(self) -> Self::IntoIter {
-        let stack_ptr = self.s_buf.as_mut().unwrap().as_mut_ptr();
+        let stack_ptr = self.s_buf.as_mut_ptr();
         let heap_ptr = self.d_buf.clone();
         let total_elem = self.size;
 
@@ -103,7 +103,7 @@ pub struct SmartBufferIterRef<'a, T, const N:usize>
     smart_buffer: &'a SmartBuffer<T,N>,
     stack_ptr: *const T,
     heap_ptr: Option<*mut T>, // will not change values in heap_ptr
-total_elem: usize,
+    total_elem: usize,
     count: usize,
 }
 
@@ -132,7 +132,7 @@ pub struct SmartBufferIterRefMut<'a, T, const N:usize>
     smart_buffer: &'a mut SmartBuffer<T,N>,
     stack_ptr: *mut T,
     heap_ptr: Option<*mut T>, // will not change values in heap_ptr
-total_elem: usize,
+    total_elem: usize,
     count: usize,
 }
 
