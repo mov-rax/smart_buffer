@@ -1,4 +1,4 @@
-#![no_std]
+// #![no_std]
 #![feature(min_const_generics)]
 #[macro_use]
 extern crate alloc;
@@ -11,9 +11,11 @@ use alloc::vec::Vec;
 use core::mem::size_of;
 
 use crate::iter::SmartBufferIterRef;
+use alloc::boxed::Box;
 
-mod iter;
+pub mod iter;
 mod index;
+pub mod into;
 
 #[macro_use]
 #[cfg(test)]
@@ -25,17 +27,13 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let mut buf = buf!(String::new(), 2, 4);
-        buf.push(String::from("I wonder"));
-        buf.push(String::from("What you could do with this"));
-        buf.push(String::from("This is in the heap now!"));
-        buf.push(String::from("Look mom, no hands!"));
-
-        buf[0] = format!("I have rearranged this!");
-
-        let len = buf.size;
-        let vecbuf:Vec<_> = buf.into();
-
+        let mut buf = buf!(0u32, 5, 10);
+        buf.insert_arr(&[4,9,3,2,1,9,3,2]);
+        buf.calc_size();
+        buf.map(|x| x*2);
+        // for thing in &buf{
+        //     println!("{}", thing);
+        // }
     }
 }
 
@@ -207,6 +205,16 @@ impl<T, const N:usize> SmartBuffer<T,N>
         self.size
     }
 
+    /// Applies a function to each element in the buffer without consuming the buffer.
+    pub fn map<F>(&mut self, mut f: F)
+    where T: Clone + Copy,
+        F: FnMut(T) -> T
+    {
+        for i in 0..self.size{
+            self[i] = f(self[i])
+        }
+    }
+
 }
 
 
@@ -228,17 +236,6 @@ impl<T, const N:usize> SmartBuffer<T,N>
     }
 }
 
-impl<T, const N: usize> Into<Vec<T>> for SmartBuffer<T,N>
-where T: Clone
-{
-    fn into(self) -> Vec<T> {
-        let mut temp = Vec::new();
-        for elem in self{
-            temp.push(elem);
-        }
-        temp
-    }
-}
 
 impl<T, const N:usize> Drop for SmartBuffer<T,N>
     where T: Clone

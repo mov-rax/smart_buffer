@@ -2,6 +2,7 @@ use crate::SmartBuffer;
 
 use core::mem::size_of;
 use alloc::alloc::{dealloc};
+use crate::__core::iter::Map;
 
 impl<T, const N: usize> IntoIterator for SmartBuffer<T,N>
     where T: Clone
@@ -42,8 +43,9 @@ impl<'a, T, const N: usize> IntoIterator for &'a SmartBuffer<T,N>
             total_elem,
             count: 0
         }
-
     }
+
+
 }
 
 impl<'a, T, const N: usize> IntoIterator for &'a mut SmartBuffer<T,N>
@@ -94,6 +96,12 @@ impl<T, const N: usize> Iterator for SmartBufferIter<T,N>
         }
         None
     }
+
+    // fn map<F>(self, f: F) -> Map<Self, F>
+    // where F: FnMut(Self::Item) -> T
+    // {
+    //     unimplemented!()
+    // }
 }
 
 /// Iterator for SmartBuffer where the SmartBuffer is immutably referenced to
