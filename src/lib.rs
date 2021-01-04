@@ -201,6 +201,12 @@ impl<T, const N:usize> SmartBuffer<T,N>
         }
         buf
     }
+
+    /// Get the size of the data that has been pushed into the SmartBuffer.
+    pub fn get_size(&self) -> usize{
+        self.size
+    }
+
 }
 
 
