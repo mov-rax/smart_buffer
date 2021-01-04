@@ -1,4 +1,4 @@
-// #![no_std]
+#![no_std]
 #![feature(min_const_generics)]
 #[macro_use]
 extern crate alloc;
@@ -12,6 +12,7 @@ use core::mem::size_of;
 
 use crate::iter::SmartBufferIterRef;
 use alloc::boxed::Box;
+use crate::__core::fmt::{Debug, Formatter};
 
 pub mod iter;
 mod index;
@@ -28,12 +29,15 @@ mod tests {
     #[test]
     fn it_works() {
         let mut buf = buf!(0u32, 5, 10);
-        buf.insert_arr(&[4,9,3,2,1,9,3,2]);
-        buf.calc_size();
-        buf.map(|x| x*2);
-        // for thing in &buf{
-        //     println!("{}", thing);
-        // }
+        buf.insert_arr(&[4,9,3,2,1,9,3,2,10,19]);
+        //buf.map(|x| x*2);
+        let mut buf_clone = buf.clone();
+        //println!("{:?}", &buf);
+        //println!("{:?}", &buf);
+        //println!("{:?}", &buf_clone);
+
+        let test = SmartBuffer::from_arr([1u8,4,5,6,7], 5, true);
+        //println!("{:?}", &test);
     }
 }
 
@@ -150,11 +154,11 @@ impl<T, const N:usize> SmartBuffer<T,N>
     }
 
     /// Safely allocate extra heap memory
-    fn allocate(&mut self, elements:usize){
+    pub(crate) fn allocate(&mut self, elements:usize){
         let layout = Layout::from_size_align(elements*size_of::<T>(), 1);
         if let Ok(layout) = layout{
             let ptr = unsafe {alloc(layout) as *mut T};
-            self.capacity += layout.size();
+            self.capacity += layout.size()/size_of::<T>();
             self.layout = Some(layout);
             self.d_buf = Some(ptr);
         }
@@ -179,8 +183,18 @@ impl<T, const N:usize> SmartBuffer<T,N>
         buf
     }
 
+
+    // pub fn from_vec(buf:Vec<T>, len: usize, set_size:bool) -> Self{
+    //     let temp_buf = [T; N]; // array of defined length;
+    //
+    // }
+
     /// Creates a SmartBuffer from an array
-    pub fn from_arr(buf:[T; N], len:usize) -> Self
+    ///
+    /// - `buf` is the array that will be consumed to create the buffer
+    /// - `len` is the maximum capacity of the SmartBuffer
+    /// - `set_size` decides whether or not the length of the array should be the size of the SmartBuffer
+    pub fn from_arr(buf:[T; N], len:usize, set_size:bool) -> Self
     where T: Clone
     {
         let def = buf[0].clone();
@@ -188,7 +202,7 @@ impl<T, const N:usize> SmartBuffer<T,N>
             s_buf: buf,
             d_buf: None,
             layout: None,
-            size: 0,
+            size: if set_size { N } else { 0 },
             capacity: N,
             default: def,
             cursor: 0,
@@ -199,6 +213,7 @@ impl<T, const N:usize> SmartBuffer<T,N>
         }
         buf
     }
+
 
     /// Get the size of the data that has been pushed into the SmartBuffer.
     pub fn get_size(&self) -> usize{
@@ -212,6 +227,56 @@ impl<T, const N:usize> SmartBuffer<T,N>
     {
         for i in 0..self.size{
             self[i] = f(self[i])
+        }
+    }
+
+    /// Shift Elements Left
+    ///
+    /// - BUG: Do not shift more than the size of the stack, any more would cause a panic. If a shift of more than the size of the stack is required,
+    /// call this function multiple times.
+    pub fn shl(&mut self, count:usize){
+        self.s_buf.rotate_left(count);
+
+        if let Some(ptr) = self.d_buf{
+            for i in 0..count{
+                self.s_buf[N - count + i] = unsafe {(*ptr.offset(i as isize)).clone()}; // copies stuff
+            }
+            for i in 0..(self.capacity - N){
+                if i + count < self.capacity - N{
+                    unsafe { *ptr.offset(i as isize) = (*ptr.offset((i + count) as isize)).clone()}; // shifts left
+                }
+            }
+            for i in 0..count{
+                unsafe { (*ptr.offset((self.capacity - N - count + i) as isize)) = self.default.clone()}; // sets upper bits to zero
+            }
+        } else {
+            for i in 0..count{
+                self.s_buf[N-count+i] = self.default.clone(); // sets upper bits to default values
+            }
+        }
+    }
+
+    /// Shift Elements Right
+    ///
+    /// - BUG: Do not shift more than the size of the stack, any more would cause a panic. If a shift of more than the size of the stack is required,
+    ///  call this function multiple times.
+    pub fn shr(&mut self, count:usize){
+
+        if let Some(ptr) = self.d_buf{
+            for i in 0..(self.capacity - N){
+                if (self.capacity as i32 - N as i32 - i as i32- count as i32 - 1) >= 0{
+                    unsafe{ *ptr.offset((self.capacity - N - i - 1) as isize) = (*ptr.offset((self.capacity - N - i - count - 1) as isize)).clone()};
+                }
+            }
+            for i in 0..count{
+                unsafe { (*ptr.offset(i as isize)) = self.s_buf[(N as i32 - count as i32 + i as i32) as usize].clone()};
+            }
+        }
+
+        self.s_buf.rotate_right(count);
+
+        for i in 0..count{
+            self.s_buf[i] = self.default.clone();
         }
     }
 
@@ -247,6 +312,33 @@ impl<T, const N:usize> Drop for SmartBuffer<T,N>
     }
 }
 
+impl<T, const N:usize> Debug for SmartBuffer<T,N>
+    where T: Clone + Debug
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_list()
+            .entries(self.into_iter())
+            .finish()
+    }
+}
+
+impl<T, const N:usize> Clone for SmartBuffer<T,N>
+    where T: Clone
+{
+    fn clone(&self) -> Self {
+        let mut temp_buf = Self::from_arr(self.s_buf.clone(), self.capacity, true); // clones the items in the stack.
+        if let Some(ptr) = self.d_buf{
+            temp_buf.allocate(self.capacity - N); // temp_buf will now have memory on the heap
+
+            unsafe {
+                core::intrinsics::copy(ptr, temp_buf.d_buf.unwrap(), self.capacity - N);
+            }
+        }
+        temp_buf.default = self.default.clone();
+        temp_buf
+    }
+}
+
 #[doc(hidden)]
 #[non_exhaustive]
 pub struct Token;
@@ -272,7 +364,7 @@ impl Token {
 /// - The third element is the total required size of the SmartBuffer, which allocates memory if necessary on the heap at runtime!
 macro_rules! buf {
     ($data:expr, $s_len:expr, $t_len:expr) => {
-        $crate::SmartBuffer::<_,$s_len>::from_arr($crate::array!(_ => $data; $s_len), $t_len)
+        $crate::SmartBuffer::<_,$s_len>::from_arr($crate::array!(_ => $data; $s_len), $t_len, false)
     }
 }
 
