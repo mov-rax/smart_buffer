@@ -1,6 +1,7 @@
 use crate::SmartBuffer;
 use core::ops::Index;
-use array_macro::__core::ops::IndexMut;
+use core::ops::IndexMut;
+
 
 impl<T, const N:usize> Index<usize> for &SmartBuffer<T,N>
     where T: Clone
